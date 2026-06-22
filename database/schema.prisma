@@ -1,0 +1,813 @@
+// AdPilot India — Prisma Schema
+// Database: PostgreSQL 15 via Supabase
+// All monetary values stored in PAISE (₹1 = 100 paise) to avoid float precision issues
+// All IDs: UUID v4
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// USERS & AUTH
+// ============================================================================
+
+model User {
+  id                String    @id @default(uuid())
+  email             String    @unique
+  emailVerified     Boolean   @default(false)
+  phone             String?
+  phoneVerified     Boolean   @default(false)
+  passwordHash      String?
+  fullName          String
+  avatarUrl         String?
+  preferredLanguage String    @default("en") // 'en', 'hi', 'hinglish'
+  googleId          String?   @unique
+  role              String    @default("user") // 'user', 'admin', 'superadmin'
+  isActive          Boolean   @default(true)
+  lastLoginAt       DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  deletedAt         DateTime?
+
+  // Relations
+  businesses        Business[]
+  campaigns         Campaign[]
+  audits            Audit[]
+  creatives         Creative[]
+  competitorAnalyses CompetitorAnalysis[]
+  growthPlans       GrowthPlan[]
+  subscriptions     Subscription[]
+  payments          Payment[]
+  credits           Credits?
+  creditTransactions CreditTransaction[]
+  aIUsageLogs       AIUsageLog[]
+  teamMemberships   TeamMember[]
+  notifications     Notification[]
+
+  @@index([email])
+  @@index([googleId])
+  @@map("users")
+}
+
+// ============================================================================
+// BUSINESSES
+// ============================================================================
+
+model Business {
+  id               String    @id @default(uuid())
+  ownerId          String
+  name             String
+  description      String?
+  businessType     String?
+  industryCategory String?
+  websiteUrl       String?
+  phone            String?
+  email            String?
+
+  // Location
+  addressLine1     String?
+  city             String?
+  state            String?
+  pincode          String?
+  country          String    @default("IN")
+  cityTier         Int?      // 1, 2, 3
+  latitude         Decimal?  @db.Decimal(10, 8)
+  longitude        Decimal?  @db.Decimal(11, 8)
+
+  // Ad Account Connections
+  googleAdsCustomerId   String?
+  googleAdsConnectedAt  DateTime?
+  metaAdAccountId       String?
+  metaConnectedAt       DateTime?
+
+  // Business Intelligence
+  targetAudience   Json?
+  seasonalProfile  Json?
+  avgMonthlyBudget Int       @default(0) // paise
+
+  logoUrl          String?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  deletedAt        DateTime?
+
+  // Relations
+  owner            User      @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  campaigns        Campaign[]
+  audits           Audit[]
+  creatives        Creative[]
+  competitorAnalyses CompetitorAnalysis[]
+  growthPlans      GrowthPlan[]
+  whatsappLeads    WhatsappLead[]
+
+  @@index([ownerId])
+  @@index([city])
+  @@map("businesses")
+}
+
+// ============================================================================
+// PLANS & SUBSCRIPTIONS
+// ============================================================================
+
+model Plan {
+  id           String  @id @default(uuid())
+  name         String  @unique // 'starter', 'growth', 'agency', 'enterprise'
+  displayName  String
+  description  String?
+
+  // Pricing in paise
+  priceMonthly Int
+  priceAnnual  Int
+
+  // Razorpay
+  razorpayPlanIdMonthly String?
+  razorpayPlanIdAnnual  String?
+  stripePriceIdMonthly  String?
+  stripePriceIdAnnual   String?
+
+  // Limits
+  maxBusinesses  Int     @default(1)
+  creditsPerMonth Int
+  maxCampaigns   Int     @default(5)
+  maxTeamMembers Int     @default(1)
+  maxWhatsappConversations Int @default(0)
+
+  features     Json    @default("{}")
+  isActive     Boolean @default(true)
+  sortOrder    Int     @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  subscriptions Subscription[]
+
+  @@map("plans")
+}
+
+model Subscription {
+  id           String    @id @default(uuid())
+  userId       String
+  planId       String
+  status       String    // 'trialing', 'active', 'past_due', 'canceled', 'paused'
+  billingCycle String    // 'monthly', 'annual'
+
+  trialEndsAt         DateTime?
+  currentPeriodStart  DateTime
+  currentPeriodEnd    DateTime
+  canceledAt          DateTime?
+  endsAt              DateTime?
+
+  razorpaySubscriptionId String? @unique
+  stripeSubscriptionId   String? @unique
+
+  gstNumber    String?
+  gstApplicable Boolean @default(true)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan         Plan @relation(fields: [planId], references: [id])
+  payments     Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+// ============================================================================
+// CREDITS
+// ============================================================================
+
+model Credits {
+  id           String    @id @default(uuid())
+  userId       String    @unique
+  balance      Int       @default(0)
+  lifetimeUsed Int       @default(0)
+  resetDate    DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  user         User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("credits")
+}
+
+model CreditTransaction {
+  id            String   @id @default(uuid())
+  userId        String
+  amount        Int      // positive = add, negative = deduct
+  type          String   // 'monthly_grant', 'topup_purchase', 'campaign_generate', etc.
+  description   String?
+  referenceId   String?
+  referenceType String?
+  balanceAfter  Int
+  createdAt     DateTime @default(now())
+
+  user          User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@map("credit_transactions")
+}
+
+// ============================================================================
+// CAMPAIGNS
+// ============================================================================
+
+model Campaign {
+  id         String    @id @default(uuid())
+  businessId String
+  userId     String
+  name       String
+  goal       String    // 'leads', 'sales', 'calls', 'bookings', etc.
+  platform   String    // 'google', 'meta', 'both'
+  status     String    @default("draft")
+  // 'draft', 'pending_review', 'approved', 'publishing', 'live', 'paused', 'ended', 'failed'
+
+  dailyBudgetPaise   Int
+  monthlyBudgetPaise Int?
+  currency           String @default("INR")
+
+  // AI Generated Content
+  aiStrategy       Json?
+  aiModelUsed      String?
+  aiGenerationCost Decimal? @db.Decimal(10, 6)
+
+  // Ad Platform IDs
+  googleCampaignId  String?
+  googlePublishedAt DateTime?
+  metaCampaignId    String?
+  metaPublishedAt   DateTime?
+
+  festivalContext String?
+  seasonContext   String?
+  startDate       DateTime?
+  endDate         DateTime?
+
+  // Performance (denormalized)
+  totalSpendPaise    Int    @default(0)
+  totalImpressions   BigInt @default(0)
+  totalClicks        BigInt @default(0)
+  totalConversions   Int    @default(0)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  business  Business  @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id])
+  adGroups  AdGroup[]
+  creatives Creative[]
+  whatsappLeads WhatsappLead[]
+
+  @@index([businessId])
+  @@index([userId])
+  @@index([status])
+  @@map("campaigns")
+}
+
+model AdGroup {
+  id         String @id @default(uuid())
+  campaignId String
+  name       String
+  theme      String?
+  platform   String
+  status     String @default("draft")
+  bidStrategy String?
+  bidAmountPaise Int?
+
+  googleAdGroupId String?
+  metaAdsetId     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  campaign  Campaign  @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  ads       Ad[]
+  keywords  Keyword[]
+
+  @@index([campaignId])
+  @@map("ad_groups")
+}
+
+model Ad {
+  id         String @id @default(uuid())
+  adGroupId  String
+  campaignId String
+  type       String // 'google_responsive_search', 'google_display', 'meta_image', etc.
+  status     String @default("draft")
+
+  headlines    Json?
+  descriptions Json?
+  primaryText  String?
+  ctaText      String?
+  displayUrl   String?
+  finalUrl     String?
+
+  imageUrls  Json?
+  videoUrl   String?
+
+  headlinesHi    Json?
+  descriptionsHi Json?
+  primaryTextHi  String?
+
+  googleAdId String?
+  metaAdId   String?
+
+  impressions  BigInt @default(0)
+  clicks       BigInt @default(0)
+  conversions  Int    @default(0)
+  spendPaise   Int    @default(0)
+  qualityScore Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adGroup AdGroup @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+
+  @@index([adGroupId])
+  @@index([campaignId])
+  @@map("ads")
+}
+
+model Keyword {
+  id        String @id @default(uuid())
+  adGroupId String
+  campaignId String
+  keyword   String
+  keywordHi String?
+  matchType String // 'broad', 'phrase', 'exact'
+  bidPaise  Int?
+
+  impressions   BigInt  @default(0)
+  clicks        BigInt  @default(0)
+  conversions   Int     @default(0)
+  avgCpcPaise   Int     @default(0)
+  qualityScore  Int?
+  relevanceScore Decimal? @db.Decimal(3, 2)
+  aiRationale   String?
+
+  isNegative Boolean @default(false)
+  status     String  @default("active")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  adGroup AdGroup @relation(fields: [adGroupId], references: [id], onDelete: Cascade)
+
+  @@index([adGroupId])
+  @@index([campaignId])
+  @@map("keywords")
+}
+
+// ============================================================================
+// AUDITS
+// ============================================================================
+
+model Audit {
+  id         String @id @default(uuid())
+  businessId String?
+  userId     String
+  url        String
+  status     String @default("pending")
+  // 'pending', 'crawling', 'analyzing', 'complete', 'failed'
+
+  overallScore     Int?
+  seoScore         Int?
+  uxScore          Int?
+  mobileScore      Int?
+  speedScore       Int?
+  conversionScore  Int?
+  trustScore       Int?
+  adReadinessScore Int?
+
+  lighthouseData       Json?
+  crawlerData          Json?
+  aiAnalysis           Json?
+
+  criticalIssuesCount Int @default(0)
+  highIssuesCount     Int @default(0)
+  mediumIssuesCount   Int @default(0)
+  lowIssuesCount      Int @default(0)
+
+  pdfUrl           String?
+  aiModelUsed      String?
+  aiGenerationCost Decimal? @db.Decimal(10, 6)
+  creditsUsed      Int?
+
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  business    Business?   @relation(fields: [businessId], references: [id])
+  user        User        @relation(fields: [userId], references: [id])
+  auditIssues AuditIssue[]
+
+  @@index([businessId])
+  @@index([userId])
+  @@map("audits")
+}
+
+model AuditIssue {
+  id       String @id @default(uuid())
+  auditId  String
+  category String // 'seo', 'ux', 'mobile', 'speed', 'conversion', 'trust'
+  severity String // 'critical', 'high', 'medium', 'low', 'info'
+  title    String
+  description  String
+  recommendation String
+
+  impactScore Int?
+  effortScore Int?
+
+  elementSelector String?
+  screenshotUrl   String?
+
+  isFixed  Boolean   @default(false)
+  fixedAt  DateTime?
+
+  sortOrder Int?
+  createdAt DateTime @default(now())
+
+  audit Audit @relation(fields: [auditId], references: [id], onDelete: Cascade)
+
+  @@index([auditId])
+  @@index([severity])
+  @@map("audit_issues")
+}
+
+// ============================================================================
+// CREATIVES
+// ============================================================================
+
+model Creative {
+  id         String  @id @default(uuid())
+  businessId String
+  userId     String
+  campaignId String?
+  type       String  // 'image_ad', 'reel_concept', 'ugc_script', 'video_script', etc.
+  title      String?
+  brief      String
+
+  hookVariations  Json?
+  bodyCopy        String?
+  ctaOptions      Json?
+  visualDirection String?
+  imagePrompt     String?
+  videoPrompt     String?
+  storyboard      Json?
+
+  briefHi         String?
+  hookVariationsHi Json?
+  bodyCopyHi      String?
+
+  generatedImageUrls Json?
+  platform           String?
+  format             String?
+
+  aiModelUsed      String?
+  aiGenerationCost Decimal? @db.Decimal(10, 6)
+  creditsUsed      Int?
+
+  status    String    @default("draft")
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  deletedAt DateTime?
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+  campaign Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+
+  @@index([businessId])
+  @@index([campaignId])
+  @@map("creatives")
+}
+
+// ============================================================================
+// COMPETITOR INTELLIGENCE
+// ============================================================================
+
+model CompetitorAnalysis {
+  id             String  @id @default(uuid())
+  businessId     String
+  userId         String
+  competitorName String?
+  competitorUrl  String
+  status         String  @default("pending")
+
+  positioningAnalysis  Json?
+  keywordOpportunities Json?
+  contentGaps          Json?
+  marketGaps           Json?
+  adAngles             Json?
+  swotAnalysis         Json?
+
+  activeMetaAds       Json?
+  metaAdsScrapedAt    DateTime?
+  organicKeywords     Json?
+
+  estimatedMonthlySpendRange String?
+
+  aiModelUsed      String?
+  aiGenerationCost Decimal? @db.Decimal(10, 6)
+  creditsUsed      Int?
+
+  pdfUrl       String?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@index([businessId])
+  @@map("competitor_analyses")
+}
+
+// ============================================================================
+// WHATSAPP
+// ============================================================================
+
+model WhatsappLead {
+  id         String  @id @default(uuid())
+  businessId String
+  campaignId String?
+  phone      String
+  name       String?
+  email      String?
+  source     String?
+
+  intent               String?
+  leadScore            Int     @default(0)
+  qualificationStatus  String  @default("new")
+  // 'new', 'contacted', 'qualified', 'unqualified', 'converted', 'lost'
+
+  customFields         Json?
+  lastMessageAt        DateTime?
+  convertedAt          DateTime?
+  conversionValuePaise Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business      Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  campaign      Campaign? @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  conversations WhatsappConversation[]
+
+  @@index([businessId])
+  @@unique([businessId, phone])
+  @@map("whatsapp_leads")
+}
+
+model WhatsappConversation {
+  id         String @id @default(uuid())
+  leadId     String
+  businessId String
+  status     String @default("open") // 'open', 'closed', 'escalated'
+  assignedTo String?
+
+  lastMessageAt DateTime?
+  closedAt      DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  lead     WhatsappLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  messages WhatsappMessage[]
+
+  @@map("whatsapp_conversations")
+}
+
+model WhatsappMessage {
+  id             String @id @default(uuid())
+  conversationId String
+  direction      String // 'inbound', 'outbound'
+  sender         String // 'lead', 'ai', 'human'
+  messageType    String // 'text', 'image', 'document', 'button', 'template'
+  content        String?
+  mediaUrl       String?
+
+  aiIntentDetected String?
+  aiSentiment      String?
+  aiResponseReason String?
+
+  isRead          Boolean @default(false)
+  wabaMessageId   String?
+  status          String  @default("sent")
+
+  sentAt    DateTime @default(now())
+  createdAt DateTime @default(now())
+
+  conversation WhatsappConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+  @@map("whatsapp_messages")
+}
+
+// ============================================================================
+// GROWTH PLANS
+// ============================================================================
+
+model GrowthPlan {
+  id         String @id @default(uuid())
+  businessId String
+  userId     String
+
+  goalDescription   String
+  goalType          String?  // 'leads', 'sales', 'calls', 'revenue'
+  goalQuantity      Int?
+  goalTimeframe     Int?     // days
+  availableBudgetPaise Int?
+
+  recommendedChannels Json?
+  budgetAllocation    Json?
+  adStrategy          Json?
+  creativeStrategy    Json?
+  followupStrategy    Json?
+  optimizationPlan    Json?
+
+  expectedLeads       Int?
+  expectedCostPaise   Int?
+  expectedTimelineDays Int?
+  confidenceScore     Decimal? @db.Decimal(3, 2)
+
+  actualLeads    Int @default(0)
+  actualCostPaise Int @default(0)
+
+  status    String @default("draft")
+
+  aiModelUsed      String?
+  aiGenerationCost Decimal? @db.Decimal(10, 6)
+  creditsUsed      Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id])
+
+  @@map("growth_plans")
+}
+
+// ============================================================================
+// AI USAGE LOGGING
+// ============================================================================
+
+model AIUsageLog {
+  id            String   @id @default(uuid())
+  userId        String
+  operationType String
+  provider      String
+  model         String
+  promptTokens  Int?
+  completionTokens Int?
+  totalTokens   Int?
+  costUsd       Decimal? @db.Decimal(10, 8)
+  latencyMs     Int?
+  success       Boolean  @default(true)
+  errorMessage  String?
+  referenceId   String?
+  referenceType String?
+  createdAt     DateTime @default(now())
+
+  user          User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([operationType])
+  @@map("ai_usage_logs")
+}
+
+// ============================================================================
+// TEAMS
+// ============================================================================
+
+model Team {
+  id        String @id @default(uuid())
+  ownerId   String
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  members TeamMember[]
+
+  @@map("teams")
+}
+
+model TeamMember {
+  id       String @id @default(uuid())
+  teamId   String
+  userId   String?
+  email    String
+  role     String @default("member") // 'owner', 'admin', 'member', 'viewer'
+  status   String @default("pending") // 'pending', 'active', 'removed'
+
+  invitedBy  String?
+  acceptedAt DateTime?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  team Team  @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([teamId, email])
+  @@map("team_members")
+}
+
+// ============================================================================
+// INDIA INTELLIGENCE
+// ============================================================================
+
+model IndiaIntelligence {
+  id        String @id @default(uuid())
+  eventType String // 'festival', 'sporting_event', 'exam_season', 'wedding_season', etc.
+  name      String
+  nameHi    String?
+
+  typicalStartMonth Int?
+  typicalEndMonth   Int?
+  peakWeek          Int?
+  advancePrepDays   Int @default(30)
+
+  relevantIndustries Json?
+  tier1Relevance     Decimal? @db.Decimal(3, 2)
+  tier2Relevance     Decimal? @db.Decimal(3, 2)
+  tier3Relevance     Decimal? @db.Decimal(3, 2)
+  budgetMultiplier   Decimal  @default(1.0) @db.Decimal(3, 2)
+
+  strategyNotes  String?
+  keywordsBoost  Json?
+  creativeThemes Json?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("india_intelligence")
+}
+
+// ============================================================================
+// PAYMENTS
+// ============================================================================
+
+model Payment {
+  id             String   @id @default(uuid())
+  userId         String
+  subscriptionId String?
+
+  amountPaise    Int
+  currency       String @default("INR")
+  gstAmountPaise Int    @default(0)
+
+  status        String // 'pending', 'processing', 'success', 'failed', 'refunded'
+  paymentMethod String?
+
+  razorpayOrderId    String?
+  razorpayPaymentId  String? @unique
+  razorpaySignature  String?
+
+  stripePaymentIntentId String? @unique
+  stripeInvoiceId       String?
+
+  description            String?
+  invoiceUrl             String?
+  failureReason          String?
+  refundedAmountPaise    Int @default(0)
+
+  paidAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  user         User          @relation(fields: [userId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+// ============================================================================
+// NOTIFICATIONS
+// ============================================================================
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  type      String
+  title     String
+  body      String?
+  actionUrl String?
+  isRead    Boolean  @default(false)
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, isRead])
+  @@map("notifications")
+}
