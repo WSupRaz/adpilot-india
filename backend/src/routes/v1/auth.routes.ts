@@ -19,7 +19,7 @@ export const authRouter = Router();
 authRouter.post("/register", authRateLimit, validate(registerSchema), async (req, res, next) => {
   try {
     const user = await authService.register(req.body);
-    const { tokens } = authService.generateTokens(user.id, user.role);
+    const tokens = authService.generateTokens(user.id, user.role);
     return created(res, { user, tokens });
   } catch (err) {
     next(err);

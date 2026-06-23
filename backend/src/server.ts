@@ -2,6 +2,8 @@ import "express-async-errors";
 import { app } from "./app";
 import { config } from "./config";
 import { logger } from "./lib/logger";
+import { prisma } from "./config/database";
+import { redis } from "./config/redis";
 import * as Sentry from "@sentry/node";
 
 Sentry.init({
