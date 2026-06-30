@@ -35,6 +35,7 @@ export interface Campaign {
   endDate?: string;
   createdAt: string;
   updatedAt: string;
+  business?: { id: string; name: string; city?: string | null; websiteUrl?: string | null } | null;
 }
 
 export interface Business {
