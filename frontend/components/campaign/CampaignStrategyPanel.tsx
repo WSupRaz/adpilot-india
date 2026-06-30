@@ -58,11 +58,52 @@ function KeywordList({ keywords }: { keywords: unknown[] }) {
 }
 
 export function CampaignStrategyPanel({ strategy }: CampaignStrategyPanelProps) {
-  const google = strategy.google as any;
-  const meta = strategy.meta as any;
-  const expectedOutcomes = strategy.expected_outcomes as any;
-  const indiaNote = strategy.india_intelligence_notes as string | undefined;
-  const rationale = strategy.strategy_rationale as string | undefined;
+  const s = strategy as any;
+
+  // Support both AI-generated format (google/meta top-level keys) and seed/legacy format
+  const rationale: string | undefined = s.strategy_rationale ?? s.summary;
+
+  // Expected outcomes — AI format or seed estimatedResults
+  const outcomes = s.expected_outcomes ?? null;
+  const estimated = s.estimatedResults ?? null;
+
+  // Google keywords — AI format: s.google.keywords | seed format: s.keywords.google
+  const googleKeywords: unknown[] =
+    Array.isArray(s.google?.keywords) ? s.google.keywords :
+    Array.isArray(s.keywords?.google) ? s.keywords.google : [];
+
+  const negativeKeywords: unknown[] =
+    Array.isArray(s.google?.negative_keywords) ? s.google.negative_keywords :
+    Array.isArray(s.keywords?.negativeKeywords) ? s.keywords.negativeKeywords : [];
+
+  const biddingStrategy: string | undefined = s.google?.bidding_strategy;
+
+  const adGroups: any[] =
+    Array.isArray(s.google?.ad_groups) ? s.google.ad_groups :
+    Array.isArray(s.adGroups) ? s.adGroups : [];
+
+  // Targeting / audience — AI format: s.meta.audience | seed format: s.targeting
+  const targeting = s.meta?.audience ?? s.targeting ?? null;
+  const locations: string[] =
+    Array.isArray(targeting?.locations) ? targeting.locations : [];
+  const interests: unknown[] =
+    Array.isArray(targeting?.interests) ? targeting.interests : [];
+  const ageRange: string | undefined =
+    targeting?.ageRange ??
+    (targeting?.age_min && targeting?.age_max ? `${targeting.age_min}–${targeting.age_max}` : undefined);
+  const gender: string | undefined = targeting?.gender;
+
+  // India intelligence — AI format: string | seed format: object
+  const indiaIntel = s.indiaIntelligence ?? null;
+  const indiaNote: string | undefined =
+    typeof s.india_intelligence_notes === "string" ? s.india_intelligence_notes :
+    indiaIntel
+      ? [indiaIntel.festivalAlert, indiaIntel.cityInsight, indiaIntel.seasonalNote]
+          .filter(Boolean).join(" • ")
+      : undefined;
+
+  const hasGoogleSection = googleKeywords.length > 0 || !!biddingStrategy || adGroups.length > 0;
+  const hasTargetingSection = locations.length > 0 || interests.length > 0 || !!ageRange;
 
   return (
     <div className="space-y-3">
@@ -75,67 +116,79 @@ export function CampaignStrategyPanel({ strategy }: CampaignStrategyPanelProps) 
         </div>
       )}
 
-      {/* Expected outcomes */}
-      {expectedOutcomes && (
+      {/* Expected outcomes — AI format */}
+      {outcomes && (
         <div className="grid grid-cols-2 gap-3">
-          {expectedOutcomes.leads_per_month !== undefined && (
+          {outcomes.leads_per_month !== undefined && (
             <div className="rounded-xl border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">
-                ~{expectedOutcomes.leads_per_month}
-              </p>
+              <p className="text-2xl font-bold text-primary">~{outcomes.leads_per_month}</p>
               <p className="text-xs text-muted-foreground mt-1">Expected leads/month</p>
             </div>
           )}
-          {expectedOutcomes.cost_per_lead_estimate !== undefined && (
+          {outcomes.cost_per_lead_estimate !== undefined && (
             <div className="rounded-xl border p-4 text-center">
-              <p className="text-2xl font-bold text-primary">
-                ₹{Math.round(expectedOutcomes.cost_per_lead_estimate)}
-              </p>
-              <p className="text-xs text-muted-foreground mt-1">Estimated cost per lead</p>
+              <p className="text-2xl font-bold text-primary">₹{Math.round(outcomes.cost_per_lead_estimate)}</p>
+              <p className="text-xs text-muted-foreground mt-1">Est. cost per lead</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Estimated results — seed format */}
+      {!outcomes && estimated && (
+        <div className="grid grid-cols-2 gap-3">
+          {estimated.clicks && (
+            <div className="rounded-xl border p-4 text-center">
+              <p className="text-xl font-bold text-primary">{estimated.clicks}</p>
+              <p className="text-xs text-muted-foreground mt-1">Expected clicks</p>
+            </div>
+          )}
+          {estimated.costPerConversion && (
+            <div className="rounded-xl border p-4 text-center">
+              <p className="text-xl font-bold text-primary">{estimated.costPerConversion}</p>
+              <p className="text-xs text-muted-foreground mt-1">Est. cost per conversion</p>
             </div>
           )}
         </div>
       )}
 
       {/* Google strategy */}
-      {google && (
+      {hasGoogleSection && (
         <Section title="Google Ads Strategy">
-          {google.bidding_strategy && (
+          {biddingStrategy && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1">
                 Bidding Strategy
               </p>
-              <p>{google.bidding_strategy}</p>
+              <p>{biddingStrategy}</p>
             </div>
           )}
-          {Array.isArray(google.keywords) && google.keywords.length > 0 && (
+          {googleKeywords.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                Target Keywords ({google.keywords.length})
+                Target Keywords ({googleKeywords.length})
               </p>
-              <KeywordList keywords={google.keywords} />
+              <KeywordList keywords={googleKeywords} />
             </div>
           )}
-          {Array.isArray(google.negative_keywords) && google.negative_keywords.length > 0 && (
+          {negativeKeywords.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                 Negative Keywords
               </p>
-              <KeywordList keywords={google.negative_keywords} />
+              <KeywordList keywords={negativeKeywords} />
             </div>
           )}
-          {Array.isArray(google.ad_groups) && google.ad_groups.length > 0 && (
+          {adGroups.length > 0 && (
             <div>
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
                 Ad Groups
               </p>
               <div className="space-y-2">
-                {(google.ad_groups as any[]).map((ag: any, i: number) => (
+                {adGroups.map((ag: any, i: number) => (
                   <div key={i} className="rounded-lg border p-3 text-xs">
                     <p className="font-semibold">{ag.name ?? `Ad Group ${i + 1}`}</p>
-                    {ag.theme && (
-                      <p className="text-muted-foreground mt-0.5">Theme: {ag.theme}</p>
-                    )}
+                    {ag.theme && <p className="text-muted-foreground mt-0.5">{ag.theme}</p>}
                   </div>
                 ))}
               </div>
@@ -144,47 +197,29 @@ export function CampaignStrategyPanel({ strategy }: CampaignStrategyPanelProps) 
         </Section>
       )}
 
-      {/* Meta strategy */}
-      {meta && (
-        <Section title="Meta Ads Strategy">
-          {meta.audience && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                Audience Targeting
-              </p>
-              <div className="space-y-1 text-sm">
-                {meta.audience.age_min && meta.audience.age_max && (
-                  <p>Age: {meta.audience.age_min}–{meta.audience.age_max}</p>
-                )}
-                {Array.isArray(meta.audience.locations) && (
-                  <p>Locations: {(meta.audience.locations as string[]).join(", ")}</p>
-                )}
-                {Array.isArray(meta.audience.interests) && meta.audience.interests.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Interests:</p>
-                    <KeywordList keywords={meta.audience.interests} />
-                  </div>
-                )}
+      {/* Audience targeting */}
+      {hasTargetingSection && (
+        <Section title="Audience Targeting">
+          <div className="space-y-3">
+            {(ageRange || gender) && (
+              <div className="flex gap-4 text-sm">
+                {ageRange && <span>Age: <strong>{ageRange}</strong></span>}
+                {gender && <span>Gender: <strong className="capitalize">{(gender as string).toLowerCase()}</strong></span>}
               </div>
-            </div>
-          )}
-          {Array.isArray(meta.ad_sets) && meta.ad_sets.length > 0 && (
-            <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
-                Ad Sets
-              </p>
-              <div className="space-y-2">
-                {(meta.ad_sets as any[]).map((as: any, i: number) => (
-                  <div key={i} className="rounded-lg border p-3 text-xs">
-                    <p className="font-semibold">{as.name ?? `Ad Set ${i + 1}`}</p>
-                    {as.objective && (
-                      <p className="text-muted-foreground mt-0.5">Objective: {as.objective}</p>
-                    )}
-                  </div>
-                ))}
+            )}
+            {locations.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Locations</p>
+                <KeywordList keywords={locations} />
               </div>
-            </div>
-          )}
+            )}
+            {interests.length > 0 && (
+              <div>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">Interests</p>
+                <KeywordList keywords={interests} />
+              </div>
+            )}
+          </div>
         </Section>
       )}
 
@@ -192,7 +227,7 @@ export function CampaignStrategyPanel({ strategy }: CampaignStrategyPanelProps) 
       {indiaNote && (
         <div className="rounded-xl border border-orange-200 bg-orange-50 dark:bg-orange-950/20 p-4">
           <p className="text-xs font-medium text-orange-700 dark:text-orange-300 uppercase tracking-wide mb-1">
-            India Intelligence
+            🇮🇳 India Intelligence
           </p>
           <p className="text-sm text-orange-900 dark:text-orange-100">{indiaNote}</p>
         </div>
