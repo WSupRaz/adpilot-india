@@ -111,10 +111,17 @@ export function CampaignWizard() {
 
   async function onSubmit(data: CampaignFormValues) {
     try {
-      const result = await apiClient.post<{ data: { job_id: string } }>("/api/v1/campaigns", data);
-      setJobId(result.data.job_id);
+      const result = await apiClient.post<{ data: { campaign_id?: string; job_id?: string } }>("/api/v1/campaigns", data);
+      if (result.data.campaign_id) {
+        // Synchronous generation — go straight to campaign page
+        toast.success("Campaign generated! Review and approve it.");
+        router.push(`/campaigns/${result.data.campaign_id}`);
+      } else if (result.data.job_id) {
+        // Legacy async queue path
+        setJobId(result.data.job_id);
+      }
     } catch (err: any) {
-      toast.error(err?.message ?? "Failed to start campaign generation. Please try again.");
+      toast.error(err?.message ?? "Failed to generate campaign. Please try again.");
     }
   }
 
@@ -458,7 +465,7 @@ export function CampaignWizard() {
             </div>
             <div className="rounded-xl bg-muted/50 p-4 text-xs text-muted-foreground space-y-1">
               <p className="font-medium text-foreground">What happens next?</p>
-              <p>1. Our AI generates keywords, ad copy, and audience targeting (30–60 seconds)</p>
+              <p>1. Our AI generates keywords, ad copy, and audience targeting (15–45 seconds)</p>
               <p>2. You review and approve the campaign</p>
               <p>3. Campaign is saved — Google/Meta publishing available in Phase 2</p>
               <p className="text-primary font-medium mt-1">This uses <strong>15 AI credits</strong> from your balance.</p>
@@ -490,7 +497,7 @@ export function CampaignWizard() {
               disabled={isSubmitting}
               className="rounded-md bg-primary px-5 py-2 text-sm font-semibold text-primary-foreground disabled:opacity-70"
             >
-              {isSubmitting ? "Starting..." : "Generate Campaign (15 credits)"}
+              {isSubmitting ? "Generating… Please wait" : "Generate Campaign (15 credits)"}
             </button>
           )}
         </div>
