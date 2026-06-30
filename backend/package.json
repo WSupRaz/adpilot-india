@@ -12,6 +12,7 @@
     "db:migrate": "npx prisma migrate dev --schema=../database/schema.prisma",
     "db:push": "npx prisma db push --schema=../database/schema.prisma",
     "db:seed": "npx tsx ../database/seed.ts",
+    "db:demo": "npx tsx ../database/demo-seed.ts",
     "db:studio": "npx prisma studio --schema=../database/schema.prisma"
   },
   "dependencies": {
