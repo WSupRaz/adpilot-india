@@ -9,6 +9,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Plus, X } from "lucide-react";
 import { JobProgress } from "@/components/shared/JobProgress";
+import { CampaignGenerating } from "@/components/campaign/CampaignGenerating";
 import { apiClient } from "@/lib/api-client";
 import type { Business } from "@/types";
 
@@ -70,6 +71,7 @@ interface BusinessesResponse { data: Business[] }
 export function CampaignWizard() {
   const [step, setStep] = useState(0);
   const [jobId, setJobId] = useState<string | null>(null);
+  const [generating, setGenerating] = useState(false);
   const [showNewBiz, setShowNewBiz] = useState(false);
   const [creatingBiz, setCreatingBiz] = useState(false);
   const router = useRouter();
@@ -110,17 +112,18 @@ export function CampaignWizard() {
   }
 
   async function onSubmit(data: CampaignFormValues) {
+    setGenerating(true);
     try {
       const result = await apiClient.post<{ data: { campaign_id?: string; job_id?: string } }>("/api/v1/campaigns", data);
       if (result.data.campaign_id) {
-        // Synchronous generation — go straight to campaign page
         toast.success("Campaign generated! Review and approve it.");
         router.push(`/campaigns/${result.data.campaign_id}`);
       } else if (result.data.job_id) {
-        // Legacy async queue path
+        setGenerating(false);
         setJobId(result.data.job_id);
       }
     } catch (err: any) {
+      setGenerating(false);
       toast.error(err?.message ?? "Failed to generate campaign. Please try again.");
     }
   }
@@ -128,6 +131,17 @@ export function CampaignWizard() {
   function onJobComplete(campaignId: string) {
     toast.success("Your campaign is ready to review!");
     router.push(`/campaigns/${campaignId}`);
+  }
+
+  if (generating) {
+    const biz = businesses.find((b) => b.id === form.getValues("businessId"));
+    return (
+      <CampaignGenerating
+        businessName={biz?.name ?? "Your Business"}
+        goal={form.getValues("goal") ?? "leads"}
+        city={biz?.city ?? undefined}
+      />
+    );
   }
 
   if (jobId) {
