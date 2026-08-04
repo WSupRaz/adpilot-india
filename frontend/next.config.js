@@ -2,14 +2,11 @@
 const nextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "pub.adpilotindia.com",
-      },
-      {
-        protocol: "https",
-        hostname: "lh3.googleusercontent.com",
-      },
+      { protocol: "https", hostname: "pub.adpilotindia.com" },
+      { protocol: "https", hostname: "lh3.googleusercontent.com" },
+      // DALL-E 3 generated images (Azure Blob Storage via OpenAI)
+      { protocol: "https", hostname: "oaidalleapiprodscus.blob.core.windows.net" },
+      { protocol: "https", hostname: "dalleprodsec.blob.core.windows.net" },
     ],
   },
   async rewrites() {
