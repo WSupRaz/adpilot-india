@@ -19,6 +19,7 @@ declare module "next-auth" {
     id: string;
     role: string;
     accessToken?: string;
+    refreshToken?: string;
   }
 }
 
@@ -27,6 +28,8 @@ declare module "next-auth/jwt" {
     id?: string;
     role?: string;
     accessToken?: string;
+    refreshToken?: string;
+    accessTokenExpiry?: number; // unix seconds
   }
 }
 
@@ -75,6 +78,7 @@ export const authOptions: NextAuthOptions = {
             image: data.user.avatarUrl ?? null,
             role: data.user.role,
             accessToken: data.tokens.accessToken,
+            refreshToken: data.tokens.refreshToken,
           } satisfies User;
         } catch {
           return null;
@@ -107,6 +111,7 @@ export const authOptions: NextAuthOptions = {
           user.id = data.user.id;
           user.role = data.user.role;
           (user as any).accessToken = data.tokens.accessToken;
+          (user as any).refreshToken = data.tokens.refreshToken;
         } catch {
           return false;
         }
@@ -120,7 +125,44 @@ export const authOptions: NextAuthOptions = {
         token.id = user.id;
         token.role = user.role;
         token.accessToken = (user as any).accessToken;
+        token.refreshToken = (user as any).refreshToken;
+        // Decode expiry from the JWT itself so we can proactively refresh
+        try {
+          const parts = token.accessToken?.split(".");
+          if (parts && parts[1]) {
+            const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+            token.accessTokenExpiry = payload.exp as number;
+          }
+        } catch { /* ignore */ }
+        return token;
       }
+
+      // Proactively refresh if within 5 minutes of expiry
+      const nowSecs = Math.floor(Date.now() / 1000);
+      const expiresIn = (token.accessTokenExpiry ?? 0) - nowSecs;
+      if (expiresIn > 300) return token; // still valid, nothing to do
+
+      // Token expired or about to expire — use refresh token
+      if (!token.refreshToken) return token;
+      try {
+        const res = await fetch(`${API_URL}/api/v1/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refreshToken: token.refreshToken }),
+        });
+        if (!res.ok) return token;
+        const { data } = await res.json();
+        if (!data?.tokens?.accessToken) return token;
+        token.accessToken = data.tokens.accessToken;
+        if (data.tokens.refreshToken) token.refreshToken = data.tokens.refreshToken;
+        try {
+          const parts = token.accessToken?.split(".");
+          if (parts && parts[1]) {
+            const payload = JSON.parse(Buffer.from(parts[1], "base64url").toString());
+            token.accessTokenExpiry = payload.exp as number;
+          }
+        } catch { /* ignore */ }
+      } catch { /* keep old token, will 401 on next real request */ }
       return token;
     },
 

@@ -17,7 +17,7 @@ const envSchema = z.object({
   // ── Auth (required) ─────────────────────────────────────────────────────────
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
-  JWT_ACCESS_EXPIRY: z.string().default("15m"),
+  JWT_ACCESS_EXPIRY: z.string().default("30d"),
   JWT_REFRESH_EXPIRY: z.string().default("30d"),
 
   // ── Google OAuth (optional — only needed for Google login) ──────────────────
