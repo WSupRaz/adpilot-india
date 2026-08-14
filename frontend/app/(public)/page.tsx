@@ -145,14 +145,14 @@ export default function LandingPage() {
                 </div>
               </div>
 
-              {/* Floating stat chips */}
-              <div className="absolute -bottom-3 -left-5 rounded-xl border border-white/10 bg-[#0f1117]/90 backdrop-blur px-4 py-2.5 shadow-xl">
-                <p className="text-lg font-black bg-gradient-to-r from-orange-500 to-amber-400 bg-clip-text text-transparent leading-none">3.2x</p>
-                <p className="text-[10px] text-white/35 mt-0.5">Avg ROAS</p>
+              {/* Platform chips */}
+              <div className="absolute -bottom-3 -left-5 rounded-xl border border-white/10 bg-[#0f1117]/90 backdrop-blur px-3.5 py-2 shadow-xl">
+                <p className="text-xs font-bold text-white/80 leading-none">Google + Meta</p>
+                <p className="text-[10px] text-white/35 mt-0.5">Campaigns supported</p>
               </div>
-              <div className="absolute -top-4 -right-4 rounded-xl border border-white/10 bg-[#0f1117]/90 backdrop-blur px-4 py-2.5 shadow-xl">
-                <p className="text-lg font-black bg-gradient-to-r from-orange-500 to-amber-400 bg-clip-text text-transparent leading-none">₹150</p>
-                <p className="text-[10px] text-white/35 mt-0.5">Cost per lead</p>
+              <div className="absolute -top-4 -right-4 rounded-xl border border-white/10 bg-[#0f1117]/90 backdrop-blur px-3.5 py-2 shadow-xl">
+                <p className="text-xs font-bold text-white/80 leading-none">Hindi supported</p>
+                <p className="text-[10px] text-white/35 mt-0.5">Type in any language</p>
               </div>
             </div>
           </div>
@@ -173,19 +173,19 @@ export default function LandingPage() {
         <p className="text-center text-[11px] text-white/14 mt-2 tracking-wider uppercase">Businesses across India trust AdPilot</p>
       </div>
 
-      {/* ── STATS STRIP ────────────────────────────────────────────────── */}
-      <div className="max-w-5xl mx-auto px-6 py-20">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-10 text-center">
+      {/* ── CAPABILITY STRIP ───────────────────────────────────────────── */}
+      <div className="max-w-5xl mx-auto px-6 py-16">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { num: "₹150", label: "Average cost per lead",   note: "vs ₹600+ with agencies" },
-            { num: "3.2x", label: "Average ROAS",             note: "across all categories" },
-            { num: "90s",  label: "Campaign generation time", note: "not 2 weeks" },
-            { num: "500+", label: "SMBs using AdPilot",       note: "and growing" },
-          ].map((r) => (
-            <div key={r.num}>
-              <p className="text-4xl md:text-5xl font-black tracking-tight bg-gradient-to-r from-orange-500 to-amber-400 bg-clip-text text-transparent">{r.num}</p>
-              <p className="text-sm font-medium text-white/55 mt-2">{r.label}</p>
-              <p className="text-xs text-white/22 mt-0.5">{r.note}</p>
+            { icon: "🔍", title: "Google Ads",      desc: "Search, Display, and Performance Max campaigns" },
+            { icon: "📱", title: "Meta Ads",        desc: "Facebook and Instagram ads with audience targeting" },
+            { icon: "🇮🇳", title: "Hindi + English", desc: "Type your brief in any language — we understand" },
+            { icon: "⚡", title: "90-second output", desc: "Complete strategy generated, not just keywords" },
+          ].map((c) => (
+            <div key={c.title} className="rounded-2xl border border-white/8 bg-white/[0.03] px-5 py-5">
+              <p className="text-2xl mb-3">{c.icon}</p>
+              <p className="font-bold text-sm text-white mb-1">{c.title}</p>
+              <p className="text-xs text-white/38 leading-relaxed">{c.desc}</p>
             </div>
           ))}
         </div>

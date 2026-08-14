@@ -49,15 +49,15 @@ export default function SignupPage() {
             </div>
           ))}
 
-          {/* Mini stat */}
+          {/* Platform badges */}
           <div className="mt-8 grid grid-cols-2 gap-3">
             <div className="rounded-xl border border-white/8 bg-white/[0.04] p-4 text-center">
-              <p className="text-2xl font-black bg-gradient-to-r from-orange-500 to-amber-400 bg-clip-text text-transparent">90s</p>
-              <p className="text-[11px] text-white/35 mt-1">Campaign ready</p>
+              <p className="text-sm font-bold text-white/70">Google Ads</p>
+              <p className="text-[11px] text-white/30 mt-1">Campaigns ready</p>
             </div>
             <div className="rounded-xl border border-white/8 bg-white/[0.04] p-4 text-center">
-              <p className="text-2xl font-black bg-gradient-to-r from-orange-500 to-amber-400 bg-clip-text text-transparent">₹150</p>
-              <p className="text-[11px] text-white/35 mt-1">Avg cost/lead</p>
+              <p className="text-sm font-bold text-white/70">Meta Ads</p>
+              <p className="text-[11px] text-white/30 mt-1">Facebook + Instagram</p>
             </div>
           </div>
         </div>
