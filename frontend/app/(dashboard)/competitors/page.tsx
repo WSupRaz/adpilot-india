@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
@@ -38,10 +38,10 @@ const DIFFICULTY_STYLE: Record<string, { badge: string; label: string }> = {
 function AnalyzingState({ domain }: { domain: string }) {
   const steps = ["Fetching competitor website…", "Identifying their positioning…", "Finding your keyword gaps…", "Building your attack strategy…"];
   const [step, setStep] = useState(0);
-  useState(() => {
+  useEffect(() => {
     const id = setInterval(() => setStep(s => (s + 1) % steps.length), 3000);
     return () => clearInterval(id);
-  });
+  }, []);
   return (
     <Card className="max-w-md mx-auto mt-8 text-center py-12">
       <div className="relative w-16 h-16 mx-auto mb-5">
